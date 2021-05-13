@@ -1,0 +1,1 @@
+dotnet pack ./src/Mimir.FSharp.Extensions.fsproj -c Release
