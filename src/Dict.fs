@@ -22,16 +22,6 @@ module Dict =
         | None -> ()
         | Some value -> dictionary.[key] <- value
 
-    let inline addOrUpdate key (updater) (map:Dict<'Key,'Value>) =
-        map
-        |> update key (updater >> Some)
-
-    let addOrReplaceWith key add replace (dictionary:IDictionary<'TKey, 'TValue>) =
-        dictionary
-        |> update key (
-            function
-            | None -> add() |> Some
-            | Some item -> replace item |> Some)
 
 [<AutoOpen>]
 module DictPervasive =

@@ -7,7 +7,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Mimir FSharp Extensions</PackageTags>
@@ -31,6 +31,7 @@
     <Compile Include="Phantom.fs" />
     <Compile Include="TypeEquality.fs" />
     <Compile Include="Option.fs" />
+    <Compile Include="Result.fs" />
     <Compile Include="Map.fs" />
     <Compile Include="Dict.fs" />
     <Compile Include="CommonAssemblyInfo.fs" />
