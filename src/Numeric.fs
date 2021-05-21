@@ -12,10 +12,10 @@ type MinValue = MinValue with
     static member ($) (_:uint8        , _:MinValue) : uint8 = Byte.MinValue
     static member ($) (_:int16        , _:MinValue) : int16 = Int16.MinValue
     static member ($) (_:uint16       , _:MinValue) : uint16 = UInt16.MinValue
-    static member ($) (_:int32        , _:MinValue) : int32 = Int32.MinValue
-    static member ($) (_:uint32       , _:MinValue) : uint32 = UInt32.MinValue
-    static member ($) (_:int64        , _:MinValue) : int64 = Int64.MinValue
-    static member ($) (_:uint64       , _:MinValue) : uint64 = UInt64.MinValue
+    static member ($) (_:int32        , _:MinValue) : int32 =   Int32.MinValue
+    static member ($) (_:uint32       , _:MinValue) : uint32 =  UInt32.MinValue
+    static member ($) (_:int64        , _:MinValue) : int64 =   Int64.MinValue
+    static member ($) (_:uint64       , _:MinValue) : uint64 =  UInt64.MinValue
     static member ($) (_:float32      , _:MinValue) : float32 = Single.MinValue
     static member ($) (_:float64      , _:MinValue) : float64 = Double.MinValue
     static member ($) (_:decimal      , _:MinValue) : decimal = Decimal.MinValue
@@ -24,17 +24,17 @@ let inline minValue() :'r =  Unchecked.defaultof<'r> $ MinValue
 
 
 type ZeroValue = ZeroValue with
-    static member ($) (_:int8         , _:MinValue) : int8 = 0y
-    static member ($) (_:uint8        , _:MinValue) : uint8 = 0uy
-    static member ($) (_:int16        , _:MinValue) : int16 = 0s
-    static member ($) (_:uint16       , _:MinValue) : uint16 = 0us
-    static member ($) (_:int32        , _:MinValue) : int32 = 0
-    static member ($) (_:uint32       , _:MinValue) : uint32 = 0ul
-    static member ($) (_:int64        , _:MinValue) : int64 = 0L
-    static member ($) (_:uint64       , _:MinValue) : uint64 = 0UL
-    static member ($) (_:float32      , _:MinValue) : float32 = 0.0f
-    static member ($) (_:float64      , _:MinValue) : float64 = 0.0
-    static member ($) (_:decimal      , _:MinValue) : decimal = 0m
+    static member ($) (_:int8         , _:ZeroValue) : int8 =    0y
+    static member ($) (_:uint8        , _:ZeroValue) : uint8 =   0uy
+    static member ($) (_:int16        , _:ZeroValue) : int16 =   0s
+    static member ($) (_:uint16       , _:ZeroValue) : uint16 =  0us
+    static member ($) (_:int32        , _:ZeroValue) : int32 =   0
+    static member ($) (_:uint32       , _:ZeroValue) : uint32 =  0ul
+    static member ($) (_:int64        , _:ZeroValue) : int64 =   0L
+    static member ($) (_:uint64       , _:ZeroValue) : uint64 =  0UL
+    static member ($) (_:float32      , _:ZeroValue) : float32 = 0.0f
+    static member ($) (_:float64      , _:ZeroValue) : float64 = 0.0
+    static member ($) (_:decimal      , _:ZeroValue) : decimal = 0m
 
 let inline zeroValue() :'r =  Unchecked.defaultof<'r> $ ZeroValue
 
