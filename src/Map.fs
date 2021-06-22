@@ -6,11 +6,15 @@ module Map =
         (keys.Length = values.Length, values)
         |> Option.ofPair
 
-    let update key updater (map:Map<'Key,'Value>) =
+    let updateWith key updater (map:Map<'Key,'Value>) =
         let update = map |> Map.tryFind key |> updater
         match update with
         | None -> map
         | Some value -> map |> Map.add key value
+
+    let inline addOrUpdateWith key (updater) (map:Map<'Key,'Value>) =
+        map
+        |> updateWith key (updater >> Some)
 
     let merge (mapA : Map<'a, 'b>) (mapB : Map<'a, 'b>) (mergeValues : 'a -> 'b -> 'b -> 'b) =
         Map.fold (fun state key valueA ->

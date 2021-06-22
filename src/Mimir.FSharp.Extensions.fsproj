@@ -7,7 +7,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
-    <Version>2.1.1</Version>
+    <Version>3.0.0</Version>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Mimir FSharp Extensions</PackageTags>
@@ -35,6 +35,7 @@
     <Compile Include="Result.fs" />
     <Compile Include="Map.fs" />
     <Compile Include="Dict.fs" />
+    <Compile Include="UnionMap.fs" />
     <Compile Include="CommonAssemblyInfo.fs" />
   </ItemGroup>
 

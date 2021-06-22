@@ -16,7 +16,7 @@ module Dict =
         (keys.Length = values.Length, values)
         |> Option.ofPair
 
-    let update key updater (dictionary:IDictionary<'TKey, 'TValue>) =
+    let updateWith key updater (dictionary:IDictionary<'TKey, 'TValue>) =
         let update = dictionary |> tryFind key |> updater
         match update with
         | None -> ()
@@ -37,8 +37,8 @@ module DictPervasive =
         member self.TryFindAll keys =
             self |> Dict.tryFindAll keys
 
-        member self.Update(key, updater) =
-            self |> Dict.update key updater
+        member self.UpdateWith(key, updater) =
+            self |> Dict.updateWith key updater
 
     let inline (|Key|_|) key dict =
         dict |> Dict.tryFind key
