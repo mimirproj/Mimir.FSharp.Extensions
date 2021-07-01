@@ -4,151 +4,177 @@ open System
 open System.Reflection
 open FSharp.Reflection
 
-type UnionMap<'union, 'associatedValue> =
+type UnionMap<'union, 'assoc> =
     private {
-        GetUnionInfo: 'union -> FSharp.Reflection.UnionCaseInfo
-        Map: Map<string,
-                 {| ConstructorInputExample: obj
-                    ConstructorInputByTag: Map<int, obj * 'associatedValue>
-                 |}>
+        GetUnionCaseInfo: 'union -> UnionCaseInfo
+
+        /// This contains the actual argument value (and an associated value) that is used to
+        /// construct a union value, given the union case tag.
+        CaseArgumentByCaseTag: Map<int, {| BoxedArgValue: obj; AssociatedValue: 'assoc |}>
+
+        /// This contains a sample argument value that can be used to
+        /// construct a union value, given the case constructor.
+        CaseArgumentSampleByTypeName: Map<string, {| BoxedArgSample: obj; RefCount: uint32 |}>
     }
 
-    with
-        member this.IsEmpty =
-            this.Map.IsEmpty
 
-
+[<RequireQualifiedAccess>]
 module UnionMap =
     [<GeneralizableValue>]
-    let empty<'union, 'associatedValue> : UnionMap<'union, 'associatedValue> =
-        let unionType = typeof<'union>
+    let empty<'union, 'assoc> : UnionMap<'union, 'assoc> =
 
-        { Map = Map.empty
-          GetUnionInfo = fun union ->
-            FSharpValue.GetUnionFields(union, unionType, BindingFlags.Public ||| BindingFlags.NonPublic)
+        let getUnionCaseInfo (unionValue:'union) =
+            FSharpValue.GetUnionFields (unionValue, typeof<'union>, BindingFlags.Public ||| BindingFlags.NonPublic)
             |> fst
+
+        { GetUnionCaseInfo = getUnionCaseInfo
+          CaseArgumentByCaseTag = Map.empty
+          CaseArgumentSampleByTypeName = Map.empty
         }
 
-    let add (ctor:'ctorInput -> 'union)
-            (ctorInput:'ctorInput)
-            (associatedValue:'associatedValue)
-            (unionMap:UnionMap<'union, 'associatedValue>) =
+    let tryFind (caseCtor:'caseArg -> 'union)
+                (unionMap:UnionMap<'union, 'assoc>)
+                : ('caseArg * 'assoc) option =
 
-        let union = ctor ctorInput
-        let unionInfo = unionMap.GetUnionInfo union
+        let anyUnionCaseInfo =
+            unionMap.CaseArgumentSampleByTypeName
+            |> Map.tryFind (typeof<'caseArg>).FullName
+            |> Option.bind (fun entry -> tryCast<'caseArg> entry.BoxedArgSample)
+            |> Option.map (caseCtor >> unionMap.GetUnionCaseInfo)
 
-        { unionMap with
-            Map =
-                unionMap.Map
-                |> Map.addOrUpdateWith (typeof<'ctorInput>.Name)
-                    (Option.map(fun existing ->
-                        {| existing with
-                            ConstructorInputByTag =
-                                existing.ConstructorInputByTag
-                                |> Map.add unionInfo.Tag (box ctorInput, associatedValue)
-                        |})
-
-                     >> Option.defaultWith(fun _ ->
-                        {| ConstructorInputExample = ctorInput
-                           ConstructorInputByTag = Map.ofList [ unionInfo.Tag, (box ctorInput, associatedValue) ]
-                        |})
-                    )
-
-        }
-
-
-    let tryFind (ctor:'ctorInput -> 'union)
-                (unionMap:UnionMap<'union, 'associatedValue>) =
-
-        unionMap.Map
-        |> Map.tryFind (typeof<'ctorInput>.Name)
-        |> Option.bind(fun entry ->
-            let unionInfo =
-                ctor (downcast entry.ConstructorInputExample)
-                |> unionMap.GetUnionInfo
-
-            entry.ConstructorInputByTag
-            |> Map.tryFind unionInfo.Tag
-            |> Option.map(fun (boxedCtorInput, associatedValue) ->
-                ( boxedCtorInput :?> 'ctorInput
-                , associatedValue
-                )
-            )
+        anyUnionCaseInfo
+        |> Option.bind (fun unionCaseInfo ->
+            unionMap.CaseArgumentByCaseTag
+            |> Map.tryFind unionCaseInfo.Tag)
+        |> Option.bind (fun entry ->
+            tryCast<'caseArg> entry.BoxedArgValue
+            |> Option.map (fun arg -> (arg, entry.AssociatedValue))
         )
 
-
-    let exists (ctor:'ctorInput -> 'union)
-               (predicate: 'ctorInput -> 'associatedValue -> bool)
-               (unionMap:UnionMap<'union, 'associatedValue>) =
+    let exists (caseCtor:'caseArg -> 'union)
+               (predicate: 'caseArg -> 'assoc -> bool)
+               (unionMap:UnionMap<'union, 'assoc>) =
 
         unionMap
-        |> tryFind ctor
-        |> Option.exists(fun (ctorInput, associatedValue) -> predicate ctorInput associatedValue)
+        |> tryFind caseCtor
+        |> Option.exists (fun (ctorInput, associatedValue) -> predicate ctorInput associatedValue)
 
 
-    let containsKey (ctor:'ctorInput -> 'union)
-                    (unionMap:UnionMap<'union, 'associatedValue>) =
+    let inline contains (caseCtor:'caseArg -> 'union)
+                        (unionMap:UnionMap<'union, 'assoc>) =
 
-        unionMap.Map
-        |> Map.tryFind (typeof<'ctorInput>.Name)
-        |> Option.exists(fun entry ->
-            let unionInfo =
-                ctor (downcast entry.ConstructorInputExample)
-                |> unionMap.GetUnionInfo
-
-            entry.ConstructorInputByTag
-            |> Map.containsKey unionInfo.Tag)
+        exists caseCtor (fun _ _ -> true) unionMap
 
 
-    let remove (ctor:'ctorInput -> 'union)
-               (unionMap:UnionMap<'union, 'associatedValue>) =
+    let add (caseCtor:'caseArg -> 'union)
+            (caseArgument:'caseArg)
+            (associatedValue:'assoc)
+            (unionMap:UnionMap<'union, 'assoc>)
+            : UnionMap<'union, 'assoc>  =
+
+        let unionValue = caseCtor caseArgument
+        let unionCaseInfo = unionMap.GetUnionCaseInfo unionValue
 
         { unionMap with
-            Map =
-                unionMap.Map
-                |> Map.updateWith (typeof<'ctorInput>.Name)
-                    (Option.bind(fun entry ->
-                        let unionInfo =
-                            ctor (downcast entry.ConstructorInputExample)
-                            |> unionMap.GetUnionInfo
+            CaseArgumentByCaseTag =
+                unionMap.CaseArgumentByCaseTag
+                |> Map.addOrUpdateWith
+                    unionCaseInfo.Tag
+                    (fun _ -> // Always replaces the existing entry.
+                        {| BoxedArgValue = box caseArgument
+                           AssociatedValue = associatedValue
+                        |}
+                    )
 
-                        let nextConstructorInputByTag =
-                            entry.ConstructorInputByTag
-                            |> Map.remove unionInfo.Tag
-
-                        if nextConstructorInputByTag.IsEmpty then
-                            None
-
-                        else
-                            Some
-                                {| entry with
-                                    ConstructorInputByTag = nextConstructorInputByTag
-                                |}
-                        )
+            CaseArgumentSampleByTypeName =
+                unionMap.CaseArgumentSampleByTypeName
+                |> Map.addOrUpdateWith
+                    ((typeof<'caseArg>).FullName)
+                    (Option.map(fun entry ->
+                        {| entry with
+                            RefCount =
+                                if unionMap.CaseArgumentByCaseTag.ContainsKey unionCaseInfo.Tag then
+                                    entry.RefCount
+                                else
+                                    entry.RefCount + 1ul
+                        |})
+                     >> Option.defaultValue
+                        {| RefCount = 1ul
+                           BoxedArgSample = box caseArgument
+                        |}
                     )
         }
 
-    let updateWith (ctor:'ctorInput -> 'union)
-                   updater
-                   (unionMap:UnionMap<'union, 'associatedValue>) =
 
-        let update = unionMap |> tryFind ctor |> updater
+    let inline singleton (caseCtor:'caseArg -> 'union)
+                         (caseArgument:'caseArg)
+                         (associatedValue:'assoc) =
+
+        empty<'union, 'assoc>
+        |> add caseCtor caseArgument associatedValue
+
+
+    let remove (caseCtor:'caseArg -> 'union)
+               (unionMap:UnionMap<'union, 'assoc>) =
+
+        let caseArgTypeName = (typeof<'caseArg>).FullName
+
+        let anyCaseArgumentSample =
+            unionMap.CaseArgumentSampleByTypeName
+            |> Map.tryFind caseArgTypeName
+
+        let anyUpdatedCaseArgumentByCaseTag =
+            anyCaseArgumentSample
+            |> Option.bind (fun entry -> tryCast<'caseArg> entry.BoxedArgSample)
+            |> Option.map (caseCtor >> unionMap.GetUnionCaseInfo)
+            |> Option.bind (fun unionCaseInfo ->
+                if unionMap.CaseArgumentByCaseTag.ContainsKey unionCaseInfo.Tag then
+                    unionMap.CaseArgumentByCaseTag
+                    |> Map.remove unionCaseInfo.Tag
+                    |> Some
+
+                else
+                    None
+            )
+
+        (anyCaseArgumentSample, anyUpdatedCaseArgumentByCaseTag)
+        ||> Option.map2(fun caseArgumentSample updatedCaseArgumentByCaseTag  ->
+            { unionMap with
+                CaseArgumentByCaseTag =
+                    updatedCaseArgumentByCaseTag
+
+                CaseArgumentSampleByTypeName =
+                    if caseArgumentSample.RefCount < 2ul then
+                        unionMap.CaseArgumentSampleByTypeName
+                        |> Map.remove caseArgTypeName
+
+                    else
+                        unionMap.CaseArgumentSampleByTypeName
+                        |> Map.add
+                            caseArgTypeName
+                            {| caseArgumentSample with RefCount = caseArgumentSample.RefCount - 1ul |}
+            })
+        |> Option.defaultValue unionMap
+
+
+    let updateWith (caseCtor:'caseArg -> 'union)
+                   (updater: Option<'caseArg * 'assoc> -> Option<'caseArg * 'assoc>)
+                   (unionMap:UnionMap<'union, 'assoc>) =
+
+        let update =
+            unionMap
+            |> tryFind caseCtor
+            |> updater
+
         match update with
         | None -> unionMap
-        | Some (ctorInput, assocValue) ->
+        | Some (updatedCaseArg, updatedAssociatedValue) ->
             unionMap
-            |> add ctor ctorInput assocValue
+            |> add caseCtor updatedCaseArg updatedAssociatedValue
 
-    let inline addOrUpdate (ctor:'ctorInput -> 'union)
-                           updater
-                           (unionMap:UnionMap<'union, 'associatedValue>) =
-
-        unionMap
-        |> updateWith ctor (updater >> Some)
-
-    let inline addOrUpdateWith (ctor:'ctorInput -> 'union)
-                               (updater)
-                               (unionMap:UnionMap<'union, 'associatedValue>) =
+    let inline addOrUpdateWith (caseCtor:'caseArg -> 'union)
+                               updater
+                               (unionMap:UnionMap<'union, 'assoc>) =
 
         unionMap
-        |> updateWith ctor (updater >> Some)
+        |> updateWith caseCtor (updater >> Some)

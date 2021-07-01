@@ -15,3 +15,9 @@ let inline (|HasLength|) v =
 
 /// A constant function, a function that always returns the same value.
 let inline konst k = fun _ -> k
+
+/// Try convert the value to T, returning Some T if possible otherwise None.
+let inline tryCast<'a> (value : obj) =
+    match value with
+    | :? 'a as res -> Some res
+    | _ -> None
