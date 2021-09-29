@@ -21,3 +21,12 @@ let inline tryCast<'a> (value : obj) =
     match value with
     | :? 'a as res -> Some res
     | _ -> None
+
+
+/// Compose two functions that return a bool by ORing the results.
+let inline (>||) (fa:'a -> bool) (fb:'a -> bool) v = 
+    fa v || fb v
+
+/// Compose two functions that return a bool by ANDing. the results.
+let inline (>&&) (fa:'a -> bool) (fb:'a -> bool) v = 
+    fa v && fb v
